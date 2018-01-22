@@ -39,10 +39,7 @@ def validateCallConfig(impl):
         }
     return None
 
-# def validateConfig(impl):
-
 def check_param(params, name, required, param_type):
-
     if name not in params:
         if required:
             error = {
@@ -66,12 +63,38 @@ def check_param(params, name, required, param_type):
             'info': {
                 'key': name,
                 'expected': param_type.__name__,
-                # TODO translate to json type name
                 'received': type(param_value).__name__
             }
         }
         return [None, error]
     return [param_value, None]
+
+def get_string_config(config, name, required):
+    if name not in config:
+        if required:
+            raise ValueError('the required configuration property "' + name + '" was not provided')
+        else:
+            return None
+    config_value = config[name]
+
+    if not isinstance(config_value, basestring):
+        raise(ValueError('"' + name + '" configuration property is not an string but a  ' + type(config_value).__name__))
+    return config_value
+
+def get_int_config(config, name, required):
+    if name not in config:
+        if required:
+            raise ValueError('the required configuration property "' + name + '" was not provided')
+        else:
+            return None
+    config_value = config[name]
+
+    try:
+        return int(config_value)
+    except ValueError as ex:
+        raise(ValueError('"' + name + '" configuration property is not an integer "' + str(config_value) + '": '  + str(ex)))
+
+    
 
 
 def validateSearchParameter(parameter, ctx):
@@ -800,21 +823,16 @@ def make_job(username, jamo_id, filename):
 
 def validate_config(config):
      # Import and validate the jgi host
-    if 'jgi-base-url' not in config:
-        raise(ValueError('"jgi-base-url" configuration property not provided'))
+    jgi_search_base_url = get_string_config(config, 'jgi-base-url', True)
+
     # The host must be secure, and be reasonably valid:
     # https://a.b
-    if (not re.match("^https://.+?\\..+$", config['jgi-base-url'])):
+    if (not re.match("^https://.+?\\..+$", jgi_search_base_url)):
         raise(ValueError('"jgi-base-url" configuration property not a valid url base'))
 
-    jgi_search_base_url = config['jgi-base-url']
-
-
     # Import and validate the jgi token
-    if 'jgi-token' not in config:
-        raise(ValueError('"jgi-token" configuration property not provided'))
+    token = get_string_config(config, 'jgi-token', True).split(':')
 
-    token = config['jgi-token'].split(':')
     if (len(token) != 2):
         raise(ValueError('"jgi-token" configuration property is invalid'))
 
@@ -826,38 +844,20 @@ def validate_config(config):
         raise(ValueError('"jgi-token" configuration property is invalid'))
 
     # Import and validate the connection timeout
-    if 'jgi-connection-timeout' not in config:
-        raise(ValueError('"jgi-connection-timeout" configuration property not provided'))
-    try:
-        connection_timeout = int(config['jgi-connection-timeout'])
-    except ValueError as ex:
-        raise(ValueError('"jgi-connection-timeout" configuration property is not a float: ' + str(ex)))
-    if not (config['jgi-connection-timeout'] > 0):
-        raise(ValueError('"jgi-connection-timeout" configuration property must be > 0'))
+    connection_timeout = get_int_config(config, 'jgi-connection-timeout', True)
+    if not (connection_timeout > 0):
+        raise(ValueError('"jgi-connection-timeout" configuration property must be > 0, but is ' + connection_timeout))
+
 
     connection_timeout = float(connection_timeout) /float(1000)
     print('connection timeout %f sec' % (connection_timeout) )
 
     # Import and validate the mongo db settings
-    if 'mongo-host' not in config:
-        raise(ValueError('"mongo-host" configuration property not provided')) 
-    mongo_host = config['mongo-host']
-
-    if 'mongo-port' not in config:
-        raise(ValueError('"mongo-port" configuration property not provided')) 
-    mongo_port = int(config['mongo-port'])
-
-    if 'mongo-db' not in config:
-        raise(ValueError('"mongo-db" configuration property not provided'))
-    mongo_db = config['mongo-db']
-
-    if 'mongo-user' not in config:
-        raise(ValueError('"mongo-user" configuration property not provided'))
-    mongo_user = config['mongo-user']
-
-    if 'mongo-pwd' not in config:
-        raise(ValueError('"mongo-pwd" configuration property not provided'))
-    mongo_pwd = config['mongo-pwd']
+    mongo_host = get_string_config(config, 'mongo-host', True)
+    mongo_port = get_int_config(config, 'mongo-port', True)
+    mongo_db = get_string_config(config, 'mongo-db', True)
+    mongo_user = get_string_config(config, 'mongo-user', True);
+    mongo_pwd = get_string_config(config, 'mongo-pwd', True)
 
     return {
         'mongo': {
